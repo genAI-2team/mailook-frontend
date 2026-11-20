@@ -1,0 +1,43 @@
+name: CI & Branch Check
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  ci-check:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. main으로 가는 PR일 경우 출발 브랜치가 develop인지 검사
+      - name: Verify source branch is develop
+        if: github.base_ref == 'main'
+        run: |
+          if [ "${{ github.head_ref }}" != "develop" ]; then
+            echo "❌ 오류: main 브랜치로는 오직 'develop' 브랜치에서만 PR을 병합할 수 있습니다."
+            echo "현재 시도한 브랜치: ${{ github.head_ref }}"
+            exit 1
+          fi
+          echo "✅ 통과: develop 브랜치에서 생성된 PR입니다."
+
+      # 2. 최신 코드 가져오기
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 3. Node.js 환경 세팅 (Next.js 최신 권장 버전 20)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 4. 패키지 설치 (package-lock.json 기준 빠른 설치)
+      - name: Install dependencies
+        run: npm ci
+
+      # 5. ESLint 코드 스타일 및 문법 검사
+      - name: Run Lint
+        run: npm run lint
+
+      # 6. Next.js 프로덕션 빌드 테스트 (타입 에러 & 빌드 에러 검출)
+      - name: Build Next.js Project
+        run: npm run build
