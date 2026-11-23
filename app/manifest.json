@@ -1,0 +1,23 @@
+{
+  "name": "mAILOOK",
+  "short_name": "mAILOOK",
+  "description": "오늘 동선의 날씨에 맞춰, 내 옷장에서 옷을 골라 드려요.",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}
