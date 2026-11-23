@@ -1,7 +1,4 @@
-export default function Page() {
-  return (
-    <main>
-      <h1>signup</h1>
-    </main>
-  );
-}
+import Signup from "./signup";
+
+export const metadata = { title: "MaiLook | 회원가입" };
+export default Signup;
