@@ -1,7 +1,4 @@
-export default function Page() {
-  return (
-    <main>
-      <h1>login</h1>
-    </main>
-  );
-}
+import Login from "./Login";
+
+export const metadata = { title: "MaiLook | 로그인", description: "오늘 날씨에, 딱 나만큼 입기" };
+export default Login;
