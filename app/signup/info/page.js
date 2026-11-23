@@ -1,7 +1,4 @@
-export default function Page() {
-  return (
-    <main>
-      <h1>signupinfo</h1>
-    </main>
-  );
-}
+import Info from "./info";
+
+export const metadata = { title: "MaiLook | 기본 정보" };
+export default Info;
