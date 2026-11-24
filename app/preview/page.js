@@ -14,9 +14,7 @@ export default function Page() {
           ‹ 오늘의 옷차림
         </Button>
         <Button onClick={() => router.push("/")}>이걸로 입을게요</Button>
-        <Button href="/" variant="secondary">
-          다른 조합 보기
-        </Button>
+        <Button variant="secondary">다른 조합 보기</Button>
       </div>
     </main>
   );
