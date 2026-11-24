@@ -94,12 +94,11 @@
 - 백엔드는 Spring Boot이고, API 주소는 모두 `/api`로 시작합니다.
 
 ## 3. 담당
-
 | 담당 | 화면 (app/) | 컴포넌트 (components/) |
 |---|---|---|
-| 전이레 | feedback, profile, signup/preference | common, weather, feedback, preference |
+| 전이레 | feedback, profile, signup/preference | common, weather, feedback, preference (+ 프론트 틀: `api/`의 axios 인스턴스, `constants.js`, `utils/`) |
 | 정동화 | login, signup, signup/info, places, account | user, place |
-| 강민주 | closet, closet/storage, closet/new, closet/[clothesId], closet/new/product, preview, wear/new, wear/history | closet, wear |
+| 강민주 | closet, closet/storage, closet/new, closet/[clothesId], preview, wear/new, wear/history | closet, wear |
 | 최수인 | / (홈), uniform | recommend |
 
 홈(/)은 최수인 담당이지만, 날씨 띠와 '오늘은 몸이 안 좋아요'의 학습 제외는 전이레, '이걸로 입을게요' 착용 기록 저장은 강민주 담당입니다. 내 성향 화면의 기본 설정 칸은 정동화 담당입니다.
@@ -107,31 +106,49 @@
 ### 담당 밖 파일 수정 규칙
 
 - **작업을 지시한 사람의 담당 화면·컴포넌트가 아닌 파일을 수정해야 하면, 수정하기 전에 먼저 물어봅니다.** 어떤 파일을, 왜, 어떻게 바꾸려는지 적고, 사용자가 허락한 뒤에만 수정합니다. 묻는 동안 해당 파일은 건드리지 않습니다.
-- 공통 영역도 같은 규칙입니다. `components/common/`, `api/`의 axios 인스턴스, `constants.js`, `utils/`, `middleware`, `package.json`은 여러 사람이 함께 쓰므로 고치기 전에 물어봅니다.
+- 공통 영역도 같은 규칙입니다. `components/common/`, `api/`의 axios 인스턴스, `constants.js`, `utils/`, `package.json`은 여러 사람이 함께 쓰므로 고치기 전에 물어봅니다.
 - 지시한 사람이 누구인지(어느 담당인지) 알 수 없으면, 담당 밖 파일을 고쳐야 하는 시점에 먼저 물어봅니다.
 - 담당 화면·컴포넌트 안의 파일은 묻지 않고 작업해도 됩니다.
 
 ## 4. 폴더 구조와 화면
 
 ```
-frontend/src/
+frontend/          src 폴더 없이 프로젝트 맨 위에 둠
 ├─ app/           화면. 폴더 = 주소 = 화면 ID (예: 옷 등록 = closet/new, 홈 = /)
 ├─ api/           axios 인스턴스(withCredentials, 공통 응답 틀 풀기, 401이면 /login) + 도메인별 호출
-├─ components/    common/ 과 도메인별 폴더(user, place, closet, wear, recommend, weather, feedback, preference)
+├─ components/    common/(layout·control·form·feedback·display, 가져올 때는 @/components/common 하나) 과 도메인별 폴더(user, place, closet, wear, recommend, weather, feedback, preference)
 ├─ constants.js   ENUM 값과 화면 표시 문구 (백엔드 ENUM 이름 그대로)
-└─ utils/         날짜 형식, localStorage 등
+└─ utils/         날짜 형식, localStorage, warmth.js(clo ↔ 따뜻한 정도 단계) 등
 ```
 
 - **화면 ID는 `app/` 아래 폴더 명입니다.**
 - **UI를 만들 때는 `components/common/`의 공통 컴포넌트를 먼저 찾아서 씁니다.** 버튼, 칩, 모달, 헤더, 입력창 등 비슷한 것이 이미 있으면 새로 만들지 않고 그것을 씁니다. 필요한 공통 컴포넌트가 없거나 기능이 부족하면, 도메인 폴더에 비슷한 것을 따로 만들지 말고 공통 컴포넌트를 추가·수정해도 되는지 먼저 물어봅니다(공통 영역 수정 규칙 적용).
-- 로그인 확인은 두 단계입니다. `src/middleware`는 쿠키가 없을 때만 /login으로 보내고, 토큰 만료·위조는 API가 401을 주면 axios 인터셉터가 /login으로 보냅니다.
+- **`src/` 폴더를 쓰지 않습니다.** `app/`, `api/`, `components/` 등은 프로젝트 맨 위에 둡니다.
+- 로그인 확인은 axios로만 합니다. `proxy.js`(middleware)는 만들지 않습니다. 로그인이 필요한 화면은 처음 열 때 `GET /api/users/me`를 부르고(헤더 닉네임도 이 값), 로그인이 없거나 토큰이 만료·위조돼 API가 401을 주면 axios 응답 인터셉터가 /login으로 보냅니다. 로그인·회원가입 화면과 로그인 API 자체의 401은 이동시키지 않습니다.
 - ENUM 문자열을 컴포넌트에 직접 쓰지 말고 `constants.js`에서 가져옵니다(JS라 오타가 에러로 안 잡힘).
 - "오늘 안 나갔어요"는 서버에 저장하지 않고 localStorage에 그 날짜를 남겨 피드백 요청을 감춥니다(시연·단일 브라우저 전제).
-- 브랜드 색은 `#990635`입니다. 선택 상태에 빨간 계열 배경을 쓰지 않습니다.
+- 브랜드 색은 `#990635`입니다. 선택된 칩·페이지 번호는 브랜드 색으로 채웁니다.
+
 
 ## 5. API 호출 규칙
 
 - 호출은 `api/`의 axios 인스턴스로만 합니다. 컴포넌트에서 `fetch`나 새 axios 인스턴스를 만들지 않습니다.
+- **비동기는 기본 `async`/`await`만 씁니다(교육과정 범위).** `api/`의 함수는 `async` 함수로 axios를 `await`해서 값을 돌려주고, 화면에서는 `try`/`catch`로 감싸 부릅니다. `.then()` 체인은 쓰지 않습니다.
+- 데이터를 쓰는 화면은 `'use client'` 컴포넌트로 만들고, 처음 불러오기는 `useEffect` 안에서 `async` 함수를 만들어 부른 뒤 결과를 `useState`에 담습니다. 불러오는 중·실패 상태도 `useState`로 둡니다.
+  ```js
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setClothes(await getClothes());
+      } catch (e) {
+        setError(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+  ```
 - 로그인은 **httpOnly 쿠키**입니다. axios는 `withCredentials: true`이고, 토큰을 localStorage·sessionStorage·state에 저장하지 않습니다(스크립트로 읽을 수도 없습니다).
 - 응답은 공통 틀 `{ success, data, error: { code, message } }`입니다. axios 인스턴스에서 풀어 `data`만 넘기고, 실패하면 `error.code`로 처리합니다.
 - **주소에 userId를 넣지 않습니다.** 서버가 쿠키의 로그인 사용자로 본인 데이터만 돌려줍니다.
@@ -140,19 +157,23 @@ frontend/src/
 ## 6. 화면 규칙
 
 - 와이어프레임(Design 캔버스)과 발표 자료 "mAILOOK 화면 흐름과 동작"의 번호 주석이 버튼별 이동 화면의 기준입니다.
-- **clo·보정 같은 계산은 프론트에서 하지 않습니다.** 서버가 준 값을 보여주기만 합니다. 따뜻한 정도는 10단계(화면에서는 5칸 막대, 반 칸 = 0.5단계)로 보여줍니다.
+- **페이지 라우팅:** 첫 화면은 `/login`입니다. 화면 사이 이동은 "화면 흐름과 동작"의 '페이지 라우팅 흐름' 슬라이드와 화면별 번호 주석을 따릅니다. 새 화면을 만들면 그 화면에서 나가는 버튼을 모두 실제 주소로 연결합니다.
+- 단순 이동은 `next/link`의 `<Link>`, 저장·삭제처럼 처리한 뒤 이동하는 버튼은 `useRouter().push()`를 씁니다. 주소 문자열은 `app/` 폴더 이름과 똑같이 씁니다.
+- 기능이 아직 없는 화면도 `page.js`를 만들고, 화면 제목과 나가는 버튼만 있는 뼈대로 둡니다(라우팅 확인용).
+- **보온(조합 clo·적정 clo)·보정 계산은 프론트에서 하지 않습니다.** 서버가 준 값을 보여주기만 합니다.
+- 예외 하나: 따뜻한 정도 단계 변환은 프론트가 합니다. 서버는 옷마다 clo만 주고받으므로 `utils/warmth.js`의 `cloToLevel(clo)`(round(clo ÷ 0.08), 0 이하는 1, 최대 10)과 `levelToClo(level)`(level × 0.08)만 씁니다. 따뜻한 정도는 10단계(화면에서는 5칸 막대, 반 칸 = 0.5단계)로 보여줍니다.
 - 추천을 AI가 만들지 못하면 서버가 규칙 기반 추천을 주고, 화면에는 그 안내 문구를 보여줍니다.
-- 착용 기록은 하루 1개이고, 피드백을 남긴 날은 '이걸로 입을게요'와 '추천과 다른 옷을 입었어요'를 잠급니다.
+- 착용 기록은 하루 1개이고, 피드백을 남긴 날은 '이걸로 입을게요'·'다른 조합 보기'·'바꾸기'·'직접 고르기'를 숨기고 완료 문구만 보여줍니다.
 - 버튼·링크·입력은 실제 `<button>`, `<a>`, `<input>` + `<label>`을 씁니다. 아이콘만 있는 버튼에는 `aria-label`을 붙입니다.
 
 ## 7. 하지 말 것
 
 - TypeScript를 추가하지 않습니다.
+- 교육과정 범위를 넘는 데이터·상태 관리 도구를 쓰지 않습니다: React Query(TanStack Query), SWR, Redux·Zustand·Recoil 같은 상태 관리 라이브러리, Server Actions, 서버 컴포넌트에서 직접 데이터 불러오기, Suspense 기반 데이터 로딩. 필요해 보이면 먼저 물어봅니다.
 - 토큰을 브라우저 저장소에 저장하지 않습니다.
 - ENUM 문자열을 컴포넌트에 직접 쓰지 않습니다(`constants.js`에서 가져옴).
-- clo·보정 계산을 프론트에서 구현하지 않습니다.
+- 보온·보정 계산을 프론트에서 구현하지 않습니다(단계 변환 `utils/warmth.js`만 예외).
 - 공통 컴포넌트와 비슷한 것을 도메인 폴더에 따로 만들지 않습니다.
-- 선택 상태에 빨간 계열 배경을 쓰지 않습니다.
 - API 키를 코드에 쓰지 않습니다. `.env.local` 등 실제 값이 든 파일은 커밋하지 않습니다.
 - 백엔드 폴더의 파일을 고치지 않습니다. 필요하면 무엇이 필요한지 작업 결과에 적습니다.
 - main, develop 브랜치에 직접 커밋하지 않습니다.
