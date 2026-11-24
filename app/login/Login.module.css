@@ -19,6 +19,10 @@
 .field input::placeholder { color: #9ba5b2; }
 .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #a400380d; }
 .field input[aria-invalid="true"] { border-color: #b21a46; }
+.passwordRow { position: relative; }
+.passwordRow input { padding-right: 45px; }
+.passwordToggle { position: absolute; top: 4px; right: 5px; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 31px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--accent); }
+.passwordToggle:hover:not(:disabled) { background: #fff4f7; }
 .primary, .secondary { min-height: 39px; width: 100%; border-radius: 28px; font-weight: 700 !important; padding: 9px 18px; }
 .primary { background: var(--accent); color: white; border: 1px solid var(--accent); }
 .primary:hover:not(:disabled) { background: #8c002e; }

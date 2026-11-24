@@ -3,21 +3,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { trace, traceAsync } from "../lib/logger";
+import { trace } from "../lib/logger";
 import { maiLookLoginRequest } from "../../api/maiLookLoginApi";
 import styles from "./Login.module.css";
 
 /**
  * 왼쪽에는 서비스 소개를, 오른쪽에는 로그인 입력창을 보여 준다.
  * 처리 순서: 입력값 저장 → 입력 검사 → 서버에 로그인 요청 → 결과에 맞춰 화면 변경.
- * trace는 일반 작업의 시작·끝·오류를 기록하고, traceAsync는 서버 응답을 기다리는 작업을 기록한다.
+ * trace는 일반 작업의 실행을 기록하고, 서버 요청은 async/await로 처리한다.
  * 로그에는 이메일·비밀번호 등 사용자가 입력한 값을 전달하지 않는다.
  */
 export default function Login() {
   const router = useRouter();
   // useState는 화면에서 기억할 값을 만든다. set으로 시작하는 함수를 호출하면 값이 바뀌고 화면도 갱신된다.
   // 입력창에 적힌 이메일과 비밀번호를 저장한다.
-  const [loginInput, setLoginInput] = useState({ email: "", password: "" });
+  const [loginInput, setLoginInput] = useState({ email: "jdhdh@hanmail.net", password: "12345" });
+  const [showPassword, setShowPassword] = useState(false);
   // 입력창 아래에 표시할 오류를 저장한다. 예: errors.email은 이메일 안내 문구이다.
   const [errors, setErrors] = useState({});
   // 서버 응답을 기다리는 동안 true가 된다. 입력창과 버튼을 잠시 막는 데 사용한다.
@@ -40,6 +41,15 @@ export default function Login() {
     });
   }
 
+  /** 비밀번호 입력 여부와 입력창의 최대 길이를 검사한다. 계정 일치 여부는 서버에서 확인한다. */
+  function validatePassword(password) {
+    return trace("Login.validatePassword", () => {
+      // 비밀번호의 공백도 실제 입력값이므로 trim()으로 변경하지 않는다.
+      if (!password) return "비밀번호를 입력해 주세요.";
+      return password.length <= 20 ? "" : "비밀번호는 20자 이하로 입력해 주세요.";
+    });
+  }
+
   /** 이메일 또는 비밀번호 입력이 바뀔 때 해당 값과 안내 문구를 갱신한다. */
   function handleChange(event) {
     return trace("Login.handleChange", () => {
@@ -54,50 +64,53 @@ export default function Login() {
   }
 
   /** 입력을 검사한 뒤 서버에 로그인을 요청하고 성공 또는 실패 결과를 화면에 표시한다. */
-  function handleLogin() {
-    return traceAsync("Login.handleLogin", async () => {
-      // 1. 이미 요청 중이면 이번 호출은 처리하지 않는다.
-      if (busy) return;
-      // 2. 이메일 형식과 비밀번호 입력 여부를 검사하고 결과를 각 입력창 아래에 표시한다.
-      const nextErrors = { email: validateEmail(loginInput.email), password: loginInput.password ? "" : "비밀번호를 입력해 주세요." };
-      setErrors(nextErrors);
-      setMessage("");
-      // 오류 문구가 하나라도 있으면 서버에 요청하지 않고 여기서 끝낸다.
-      if (Object.values(nextErrors).some(Boolean)) return;
-      // 3. 요청 중 표시를 켜고 입력창과 버튼을 잠시 사용할 수 없게 한다.
-      setBusy(true);
-      try {
-        // 4. API 전용 함수가 CSRF 토큰을 받은 뒤 로그인 요청을 보낸다.
-        // await는 서버 응답을 기다린다는 뜻이다. 이메일 앞뒤 공백만 제거하고 비밀번호는 그대로 전달한다.
-        const result = await maiLookLoginRequest("/login", { email: loginInput.email.trim(), password: loginInput.password });
-        // 5. 성공한 사용자 정보를 저장하면 아래 화면이 입력창에서 환영 문구로 바뀐다.
-        setUser(result);
-        // 로그인 후 입력칸에 비밀번호 등이 남지 않도록 두 입력값을 비운다.
-        setLoginInput({ email: "", password: "" });
-        setMessage("로그인되었습니다.");
-      } catch (error) {
-        // 서버가 요청을 거절했거나 통신에 실패하면 안내 문구를 보여 준다.
-        setMessage(error.message || "로그인하지 못했습니다. 다시 시도해 주세요.");
-      } finally {
-        // 성공과 실패에 관계없이 대기 상태를 끝내 버튼을 다시 사용할 수 있게 한다.
-        setBusy(false);
-      }
-    });
+  async function handleLogin() {
+    // 1. 이미 요청 중이면 이번 호출은 처리하지 않는다-> 로그인 요청을 중복으로 보내지 않도록 방어하기 위해 사용
+    if (busy) return;
+    // 2. 이메일과 비밀번호를 각각의 검증 함수로 검사하고 결과를 각 입력창 아래에 표시한다.
+    const nextErrors = {
+      email: validateEmail(loginInput.email),
+      password: validatePassword(loginInput.password),
+    };
+    setErrors(nextErrors);
+    setMessage("");
+    // 오류 문구가 하나라도 있으면 서버에 요청하지 않고 여기서 끝낸다.
+    if (Object.values(nextErrors).some(Boolean)) return;
+    // 3. 요청 중 표시를 켜고 입력창과 버튼을 잠시 사용할 수 없게 한다.
+    setBusy(true);
+    try {
+      // 4. 로그인 요청 후 발급받은 JWT는 API 함수가 localStorage에 저장한다.
+      // await는 서버 응답을 기다린다는 뜻이다. 이메일 앞뒤 공백만 제거하고 비밀번호는 그대로 전달한다.
+      const result = await maiLookLoginRequest("/login", { email: loginInput.email.trim(), 
+        password: loginInput.password });
+      // 5. 성공한 사용자 정보를 저장하면 아래 화면이 입력창에서 환영 문구로 바뀐다.
+      setUser(result);
+      setShowPassword(false);
+      // 로그인 후 입력칸에 비밀번호 등이 남지 않도록 두 입력값을 비운다.
+      setLoginInput({ email: "", password: "" });
+      setMessage("로그인되었습니다.");
+      router.push("/");
+    } catch (error) {
+      // 서버가 요청을 거절했거나 통신에 실패하면 안내 문구를 보여 준다.
+      setMessage(error.message || "로그인하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      // 성공과 실패에 관계없이 대기 상태를 끝내 버튼을 다시 사용할 수 있게 한다.
+      // 로그인 요청 처리가 끝났다는 상태로 변경하는 코드로 로그인에 실패해도 버튼이 계속 비활성화된 채로 남지 않습니다.
+      setBusy(false);
+    }
   }
 
   /** 서버에서 로그아웃한 뒤 화면의 사용자 정보를 비워 로그인 입력창으로 돌아간다. */
-  function handleLogout() {
-    return traceAsync("Login.handleLogout", async () => {
-      setBusy(true);
-      try {
-        // 서버 세션을 종료하는 요청이 성공한 다음에 화면의 로그인 정보를 지운다.
-        await maiLookLoginRequest("/logout");
-        setUser(null);
-        setMessage("");
-      // 실패하면 사용자 정보는 유지하고 오류를 표시한다. 마지막에는 항상 대기 상태를 해제한다.
-      } catch (error) { setMessage(error.message); }
-      finally { setBusy(false); }
-    });
+  async function handleLogout() {
+    setBusy(true);
+    try {
+      // 로그아웃 요청이 성공하면 API 함수가 localStorage의 JWT를 삭제한다.
+      await maiLookLoginRequest("/logout");
+      setUser(null);
+      setMessage("");
+    // 실패하면 사용자 정보는 유지하고 오류를 표시한다. 마지막에는 항상 대기 상태를 해제한다.
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
   }
 
   /** 입력창에서 Enter를 누르면 로그인 버튼을 누른 것처럼 처리한다. */
@@ -146,13 +159,26 @@ export default function Login() {
             {/* 비밀번호는 type="password"로 글자를 가린다. 실제 계정 일치 여부는 서버가 검사한다. */}
             <div className={styles.field}>
               <label htmlFor="password">비밀번호</label>
-              <input id="password" name="password" type="password" autoComplete="current-password" maxLength={20}
+              <div className={styles.passwordRow}>
+              <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" maxLength={20}
                 value={loginInput.password} disabled={busy} onChange={handleChange} onKeyDown={handleKeyDown}
+                onBlur={() => trace("Login.passwordBlur", () => setErrors((previous) => ({ ...previous, password: validatePassword(loginInput.password) })))}
                 aria-invalid={!!errors.password} aria-describedby={errors.password ? "password-error" : undefined} />
+              <button type="button" className={styles.passwordToggle} disabled={busy}
+                aria-controls="password" aria-pressed={showPassword}
+                aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보이기"}
+                onClick={() => setShowPassword(previous => !previous)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                  <circle cx="12" cy="12" r="3" />
+                  {showPassword && <path d="m3 3 18 18" />}
+                </svg>
+              </button>
+              </div>
               {errors.password && <p id="password-error" className={styles.error} role="alert">{errors.password}</p>}
             </div>
             {/* 안내 문구가 있을 때만 보여 준다. 요청 중에는 버튼을 막고 '로그인 중…'을 표시한다. */}
-            {message && <p className={styles.message} role="status">{message}</p>}
+            {message && <p className={styles.error} role="alert">{message}</p>}
             <button type="button" className={styles.primary} disabled={busy} onClick={handleLogin}>{busy ? "로그인 중…" : "로그인"}</button>
             <div className={styles.divider}><span>처음이신가요?</span></div>
             {/* 새 계정 만들기를 누르면 /signup의 회원가입 화면으로 이동한다. */}
