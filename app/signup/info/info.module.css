@@ -46,3 +46,22 @@
 .actions .next { background: #990635; border-color: #990635; color: white; font-weight: 700; }
 @media (max-width: 800px) { .card { margin: 24px 16px 0; } }
 @media (max-width: 600px) { .header { height: 58px; padding: 0 20px; } .card { padding: 24px 20px; } .heading { align-items: flex-start; flex-direction: column; gap: 16px; } .columns { grid-template-columns: 1fr; } .map { min-height: 230px; } }
+
+.fields { border: 0; margin: 0; padding: 0; }
+.timeRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.choiceGroup { border: 0; padding: 0; margin: 0; min-width: 0; }
+.choiceGroup legend { padding: 0 0 6px; font-size: 12px; font-weight: 600; }
+.days, .segments { display: grid; gap: 5px; }
+.days { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.segments { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.days label, .segments label { position: relative; cursor: pointer; min-width: 0; }
+.days input, .segments input, .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.days span, .segments span { display: flex; justify-content: center; align-items: center; min-height: 37px; border: 1px solid #dfe1e7; border-radius: 7px; font-size: 12px; color: #555b65; }
+.days input:checked + span, .segments input:checked + span { background: #990635; border-color: #990635; color: white; font-weight: 700; }
+.days input:focus-visible + span, .segments input:focus-visible + span { outline: 3px solid #cd7a96; outline-offset: 2px; }
+.choiceGroup:disabled, .fields:disabled { opacity: .6; }
+.help, .coordinate { margin: 0; font-size: 11px; line-height: 1.5; color: #80858f; }
+.results { max-height: 190px; overflow-y: auto; list-style: none; margin: 0; padding: 0; border: 1px solid #dfe1e7; border-radius: 7px; }
+.results button { width: 100%; text-align: left; border: 0; line-height: 1.6; }
+.results button:hover { background: #fff1f5; }
+.page button:disabled { cursor: not-allowed; opacity: .6; }
