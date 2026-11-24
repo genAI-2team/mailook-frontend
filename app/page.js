@@ -12,9 +12,6 @@ export default function Home() {
         <Button href="/preview" variant="secondary">
           핏 확인하기(P1)
         </Button>
-        <Button href="/uniform" variant="secondary">
-          고정 복장 설정(P2)
-        </Button>
       </div>
     </main>
   );

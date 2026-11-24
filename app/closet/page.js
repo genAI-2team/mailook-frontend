@@ -9,9 +9,6 @@ export default function Page() {
         <Button href="/closet/storage" variant="secondary">
           보관 위치 관리
         </Button>
-        <Button href="/wear/history" variant="secondary">
-          착용 기록(P2)
-        </Button>
         <Button href="/closet/1" variant="secondary">
           옷 카드 예시
         </Button>
