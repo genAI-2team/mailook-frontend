@@ -1,0 +1,50 @@
+.page { --accent: #a40038; --ink: #10202c; display: grid; grid-template-columns: minmax(0, 1fr) 320px; width: 100%; max-width: 960px; min-height: 600px; margin: 0 auto; color: var(--ink); background: #f4f5f7; font-family: Arial, "Malgun Gothic", sans-serif; font-size: 13px; }
+.page * { box-sizing: border-box; }
+.page button { font: inherit; cursor: pointer; transition: transform .15s, background .15s, box-shadow .15s; }
+.page button:disabled { opacity: .6; cursor: default; }
+.page button:focus-visible { outline: 3px solid #cd7a96; outline-offset: 3px; }
+.previewColumn { min-width: 0; background: white; }
+.pageTitle { display: flex; align-items: center; height: 72px; padding: 0 12px; color: #202124; font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: -1.6px; }
+.preview { position: relative; isolation: isolate; min-width: 0; min-height: 520px; display: flex; align-items: flex-end; padding: 40px 36px; background: #5c605b url("/images/login-outfit.png") center 42% / cover no-repeat; color: white; }
+.preview::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, transparent 35%, rgb(0 0 0 / 15%) 55%, rgb(0 0 0 / 75%) 100%); }
+.heroCopy { max-width: 100%; }
+.heroCopy h1 { margin: 0 0 14px; font-size: clamp(30px, 3.4vw, 40px); font-weight: 800; line-height: 1.22; letter-spacing: -1.4px; text-wrap: balance; }
+.heroCopy p { margin: 0; color: #f1f1ef; font-size: 13px; line-height: 1.75; letter-spacing: -.25px; word-break: keep-all; }
+.loginPanel { background: white; border-left: 1px solid #e0e3e7; display: flex; align-items: center; justify-content: center; padding: 24px 20px; min-width: 0; }
+.loginBox { width: 100%; max-width: 280px; }
+.loginBox > h2 { font-size: 20px; font-weight: 750; margin: 0 0 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field label { font-size: 11px; color: #233f55; }
+.field input { width: 100%; min-width: 0; height: 39px; padding: 0 13px; background: white; color: #293e55; font: inherit; font-size: 12px; outline: none; border: 1px solid #d3d8e1; border-radius: 10px; }
+.field input::placeholder { color: #9ba5b2; }
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #a400380d; }
+.field input[aria-invalid="true"] { border-color: #b21a46; }
+.passwordRow { position: relative; }
+.passwordRow input { padding-right: 45px; }
+.passwordToggle { position: absolute; top: 4px; right: 5px; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 31px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--accent); }
+.passwordToggle:hover:not(:disabled) { background: #fff4f7; }
+.primary, .secondary { min-height: 39px; width: 100%; border-radius: 28px; font-weight: 700 !important; padding: 9px 18px; }
+.primary { background: var(--accent); color: white; border: 1px solid var(--accent); }
+.primary:hover:not(:disabled) { background: #8c002e; }
+.secondary { background: white; color: var(--accent); border: 1px solid var(--accent); }
+.secondary:hover:not(:disabled) { background: #fff6f9; }
+.divider { margin: 19px 0 17px; display: flex; gap: 11px; align-items: center; color: #9a8e96; font-size: 10px; }
+.divider::before, .divider::after { content: ""; background: #e4e6eb; height: 1px; flex: 1; }
+.error { font-size: 11px; line-height: 1.5; color: #b21a46; margin: 0; }
+.message { color: #94405e; background: #fff4f7; border-radius: 8px; padding: 9px; margin: 0 0 12px; font-size: 12px; line-height: 1.5; }
+.loggedIn { display: grid; gap: 16px; font-size: 14px; }
+.loggedIn p { margin: 0; }
+@media (max-width: 760px) {
+  .page { grid-template-columns: 1fr; min-height: auto; }
+  .pageTitle { height: 64px; padding: 0 20px; font-size: 34px; }
+  .preview { min-height: 400px; padding: 30px 24px; background-position: center 38%; }
+  .heroCopy h1 { font-size: 32px; }
+  .loginPanel { padding: 34px 24px 45px; border-left: 0; border-top: 1px solid #e0e3e7; }
+  .loginBox { max-width: 420px; }
+}
+@media (max-width: 380px) {
+  .preview { min-height: 350px; padding: 26px 20px; }
+  .heroCopy h1 { font-size: 28px; }
+  .heroCopy p { font-size: 12px; }
+  .lineBreak { display: none; }
+}
