@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getAuthToken, clearAuthToken } from "./authToken";
+import { getAuthToken } from "./authToken";
 
 const NO_TOKEN_PATHS = ["/api/maiLookLogin/login", "/api/maiLookLogin/insert"];
 
@@ -35,12 +35,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (typeof window !== "undefined" && error.response?.status === 401) {
-      clearAuthToken();
-      const pathname = window.location.pathname;
-      const isAuthScreen = pathname === "/login" || pathname.startsWith("/login/")
-        || pathname === "/signup" || pathname.startsWith("/signup/");
-      const isLoginRequest = NO_TOKEN_PATHS.some((path) => (error.config?.url ?? "").includes(path));
-      if (!error.config?.skipAuthRedirect && !isAuthScreen && !isLoginRequest) {
+      if (!window.location.pathname.startsWith("/login")) {
         // axios 인터셉터에는 라우터가 없어서 전체 이동으로 보낸다.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign("/login");
