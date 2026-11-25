@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 import AppShell from "./AppShell";
-import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "@/components/common/feedback/Toast";
 
 const pretendard = localFont({
@@ -23,12 +22,10 @@ export default function RootLayout({ children }) {
     <html lang="ko" className={`${pretendard.variable} h-full`}>
       <body className={`${pretendard.className} flex min-h-full flex-col antialiased`}>
         <ToastProvider>
-          <AuthProvider>
-            {/* 동적 주소는 빌드 때 pathname을 모르므로, usePathname을 쓰는 AppShell은 Suspense 안에 둔다. */}
-            <Suspense fallback={<div className="flex flex-1 flex-col">{children}</div>}>
-              <AppShell>{children}</AppShell>
-            </Suspense>
-          </AuthProvider>
+          {/* 동적 주소는 빌드 때 pathname을 모르므로, usePathname을 쓰는 AppShell은 Suspense 안에 둔다. */}
+          <Suspense fallback={<div className="flex flex-1 flex-col">{children}</div>}>
+            <AppShell>{children}</AppShell>
+          </Suspense>
         </ToastProvider>
       </body>
     </html>

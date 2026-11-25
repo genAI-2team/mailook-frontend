@@ -9,7 +9,6 @@ import { isSignupPath } from "@/components/common/layout/nav";
 // 닉네임은 로그인 담당의 GET /api/users/me로 붙인다. 성향 정리 토스트는 내 성향 API가 생긴 뒤에 붙인다.
 export default function AppShell({ children }) {
   const pathname = usePathname() || "/";
-
   const isAuthScreen =
     pathname === "/login" || pathname.startsWith("/login/") || isSignupPath(pathname);
 
@@ -19,7 +18,7 @@ export default function AppShell({ children }) {
 
   return (
     <>
-      <Header />
+      <Header nickname="KOSA" />
       <div className="flex flex-1 flex-col">{children}</div>
       <Footer />
     </>
