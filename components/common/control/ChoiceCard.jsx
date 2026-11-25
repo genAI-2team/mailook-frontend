@@ -25,11 +25,9 @@ export default function ChoiceCard({ options = [], value, onChange, label, direc
               {selected ? "✓ " : ""}
               {option.title}
             </span>
-            {option.description ? (
-              <span className={`text-xs text-sub ${selected ? "" : "group-hover:text-brand"}`}>
-                {option.description}
-              </span>
-            ) : null}
+            <span className={`text-xs text-sub ${selected ? "" : "group-hover:text-brand"}`}>
+              {option.description}
+            </span>
           </button>
         );
       })}

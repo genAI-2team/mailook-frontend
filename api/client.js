@@ -1,8 +1,23 @@
 import axios from "axios";
+import { getAuthToken } from "./authToken";
+
+const NO_TOKEN_PATHS = ["/api/maiLookLogin/login", "/api/maiLookLogin/insert"];
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
-  withCredentials: true,
+  withCredentials: false,
+});
+
+api.interceptors.request.use((config) => {
+  const url = config.url ?? "";
+  if (NO_TOKEN_PATHS.some((path) => url.includes(path))) {
+    return config;
+  }
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 api.interceptors.response.use(

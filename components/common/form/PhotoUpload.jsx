@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image";
 import Button from "../control/Button";
 
 // 사진을 올리거나 바꾸는 칸. 눌러서 고르거나, 파일을 끌어다 놓는다.
@@ -47,12 +46,14 @@ export default function PhotoUpload({
           takeFile(event.dataTransfer.files?.[0]);
         }}
         style={{ "--photo-height": typeof height === "number" ? `${height}px` : height }}
-        className={`relative flex aspect-[4/3] w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[14px] md:aspect-auto md:h-[var(--photo-height)] ${
+        className={`relative flex aspect-4/3 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[14px] md:aspect-auto md:h-(--photo-height) ${
           previewUrl ? "bg-photo" : "gap-2.5 border-2 border-dashed border-[#C7CBD1] bg-bg-1 px-4"
         }`}
       >
         {previewUrl ? (
-          <Image src={previewUrl} alt="" fill className="object-contain" />
+          // 올린 파일은 blob 주소라 next/image로 못 그린다.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={previewUrl} alt="" className="h-full w-full object-contain" />
         ) : (
           <>
             <span className="flex size-9 items-center justify-center text-sub">{icon}</span>
