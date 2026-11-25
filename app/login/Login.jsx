@@ -4,7 +4,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { trace } from "../lib/logger";
-import { maiLookLoginRequest } from "../../api/maiLookLoginApi";
+import { logout } from "@/api/auth";
+import { maiLookLoginRequest } from "@/api/maiLookLoginApi";
 import styles from "./Login.module.css";
 
 /**
@@ -105,7 +106,7 @@ export default function Login() {
     setBusy(true);
     try {
       // 로그아웃 요청이 성공하면 API 함수가 localStorage의 JWT를 삭제한다.
-      await maiLookLoginRequest("/logout");
+      await logout();
       setUser(null);
       setMessage("");
     // 실패하면 사용자 정보는 유지하고 오류를 표시한다. 마지막에는 항상 대기 상태를 해제한다.
