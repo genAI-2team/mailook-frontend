@@ -1,5 +1,5 @@
 import api from "./client";
-import { authHeaders, saveAuthToken, clearAuthToken } from "./authToken";
+import { saveAuthToken, clearAuthToken } from "./authToken";
 
 /** 공통 axios로 요청하고, 로그인 성공 시 JWT를 저장한다. */
 export async function maiLookLoginRequest(path, body) {
@@ -9,11 +9,7 @@ export async function maiLookLoginRequest(path, body) {
     // 기존 Next.js 중계 경로와 JWT 헤더 인증 방식을 유지한다.
     data = await api.post(`/api/maiLookLogin${path}`, body, {
       baseURL: "",
-      withCredentials: false,
-      headers: {
-        "Content-Type": "application/json",
-        ...(path === "/login" || path === "/insert" ? {} : authHeaders()),
-      },
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     const status = error.response?.status;
@@ -28,10 +24,6 @@ export async function maiLookLoginRequest(path, body) {
 
   if (data?.status === "fail") {
     throw new Error(data.message || "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-  }
-  if (path === "/logout") {
-    clearAuthToken();
-    return null;
   }
   if (path === "/login") {
     if (!data?.accessToken) throw new Error("로그인 토큰을 받지 못했습니다.");
