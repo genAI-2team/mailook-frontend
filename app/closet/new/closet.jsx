@@ -3,6 +3,7 @@
 
 import { createClothes } from "@/api/clothesApi";
 import { useState, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/common";
 
@@ -254,15 +255,17 @@ export default function Closet() {
               e.preventDefault();
               handleImage(e.dataTransfer.files?.[0]);
             }}
-            className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50"
+            className="relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50"
           >
 
             {imagePreview ? (
 
-              <img
+              <Image
                 src={imagePreview}
                 alt="업로드한 옷"
-                className="h-full w-full object-contain"
+                fill
+                unoptimized
+                className="object-contain"
               />
 
             ) : (
