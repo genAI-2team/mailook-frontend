@@ -1,11 +1,30 @@
 
 "use client";
 
-import { createClothes } from "@/api/clothesApi";
+import { createClothes, createClothesBatch } from "@/api/clothesApi";
 import { useState, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/common";
+
+const CLOTHES_CATEGORIES = {
+  TOP: { label: "상의", types: ["니트", "셔츠", "반팔"] },
+  BOTTOM: { label: "하의", types: ["청바지", "슬랙스"] },
+  OUTER: { label: "아우터", types: ["코트", "패딩"] },
+  SHOES: { label: "신발", types: ["운동화", "부츠"] },
+  ACCESSORY: { label: "액세서리", types: ["목도리", "장갑"] },
+  CARRY_ITEM: { label: "소지품", types: ["우산", "손난로"] },
+};
+const DEFAULT_CATEGORY = "TOP";
+const DEFAULT_MATERIAL = "WOOL";
+
+const DEFAULT_LOCATIONS = [
+  { id: "temp-master-closet", name: "안방 옷장" },
+  { id: "temp-master-drawer", name: "안방 서랍 2칸" },
+  { id: "temp-small-room-closet", name: "작은방 옷장" },
+  { id: "temp-shoe-cabinet", name: "신발장" },
+  { id: "temp-storage-box", name: "창고 리빙박스" },
+];
 
 export default function Closet() {
   const router = useRouter();
@@ -23,9 +42,10 @@ export default function Closet() {
   // ========================================
 
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("TOP");
-  const [subType, setSubType] = useState("니트");
-  const [material, setMaterial] = useState("WOOL");
+  const [category, setCategory] = useState(DEFAULT_CATEGORY);
+  const [subType, setSubType] = useState(CLOTHES_CATEGORIES[DEFAULT_CATEGORY].types[0]);
+  const [material, setMaterial] = useState(DEFAULT_MATERIAL);
+  const isCarryItem = category === "CARRY_ITEM";
 
   // ========================================
   // 3. 보온력, 통풍, 목 부분
@@ -42,7 +62,7 @@ export default function Closet() {
   const [storageLocationId, setStorageLocationId] = useState("");
   const [storageStatus, setStorageStatus] = useState("AVAILABLE");
 
-  const [locations, setLocations] = useState([]);
+  const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
   const [newLocation, setNewLocation] = useState("");
   const [locationOpen, setLocationOpen] = useState(false);
 
@@ -51,7 +71,7 @@ export default function Closet() {
   // ========================================
 
   const [multiple, setMultiple] = useState(false);
-  const [pieces, setPieces] = useState(["", ""]);
+  const [pieces, setPieces] = useState([""]);
 
   // 저장 중 상태
   const [saving, setSaving] = useState(false);
@@ -116,15 +136,9 @@ export default function Closet() {
       return;
     }
 
-    // 현재는 한 벌 등록만 지원
-    if (multiple) {
-      alert("현재는 한 벌 등록만 가능합니다.");
-      return;
-    }
-
-    // 임시 보관 위치는 실제 DB에 존재하지 않음
-    if (storageLocationId.startsWith("temp-")) {
-      alert("현재 테스트에서는 보관 위치를 지정 없음으로 선택해주세요.");
+    const locationIds = multiple ? [storageLocationId, ...pieces] : [storageLocationId];
+    if (locationIds.some((id) => id.startsWith("temp-"))) {
+      alert("보관 위치 저장은 아직 지원되지 않습니다. '지정 없음'을 선택해주세요.");
       return;
     }
 
@@ -135,17 +149,12 @@ export default function Closet() {
       subType: subType,
       material: material,
 
-      clo: Number((warmth * 0.08).toFixed(2)),
+      clo: isCarryItem ? null : Number((warmth * 0.08).toFixed(2)),
 
-      breathability: breathability,
+      breathability: isCarryItem ? null : breathability,
 
       neckCover:
         category === "TOP" ? neckCover : false,
-
-      storageLocationId:
-        storageLocationId
-          ? Number(storageLocationId)
-          : null,
 
       storageStatus: storageStatus,
 
@@ -154,6 +163,9 @@ export default function Closet() {
       // 현재는 이미지 URL 테스트
       imageUrl: "https://example.com/coat.jpg"
     };
+    const storageLocations = locationIds.map((id) => ({
+      storageLocationId: id ? Number(id) : null
+    }));
 
     console.log("옷 등록 요청 데이터:", clothesData);
     console.log("선택한 이미지 파일:", imageFile);
@@ -163,7 +175,9 @@ export default function Closet() {
 
     try {
 
-      const response = await createClothes(clothesData);
+      const response = multiple
+        ? await createClothesBatch({ ...clothesData, pieces: storageLocations })
+        : await createClothes({ ...clothesData, ...storageLocations[0] });
       console.log("서버 응답:", response);
 
       alert("옷 등록 성공!");
@@ -185,7 +199,7 @@ export default function Closet() {
         error.response?.status
       );
 
-      alert("옷 등록에 실패했습니다. Console을 확인해주세요.");
+      alert(error.response?.data?.message || "옷 등록에 실패했습니다. Console을 확인해주세요.");
 
     } finally {
 
@@ -342,86 +356,65 @@ export default function Closet() {
 
           </div>
 
-          {/* 종류 및 소재 */}
-
-          <div className="grid grid-cols-2 gap-4">
-
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-
-              <label className="mb-2 block text-sm">
-                종류
-              </label>
-
+              <label htmlFor="clothes-category" className="mb-2 block text-sm">분류</label>
               <select
-                value={`${category}:${subType}`}
-                onChange={(e) => {
-                  const [cat, sub] =
-                    e.target.value.split(":");
-
-                  setCategory(cat);
-                  setSubType(sub);
+                id="clothes-category"
+                value={category}
+                onChange={(event) => {
+                  const nextCategory = event.target.value;
+                  setCategory(nextCategory);
+                  setSubType(CLOTHES_CATEGORIES[nextCategory].types[0]);
+                  setMaterial(DEFAULT_MATERIAL);
                 }}
                 className={inputStyle}
               >
-
-                <option value="TOP:니트">
-                  상의 · 니트
-                </option>
-
-                <option value="TOP:셔츠">
-                  상의 · 셔츠
-                </option>
-
-                <option value="TOP:반팔">
-                  상의 · 반팔
-                </option>
-
-                <option value="BOTTOM:청바지">
-                  하의 · 청바지
-                </option>
-
-                <option value="BOTTOM:슬랙스">
-                  하의 · 슬랙스
-                </option>
-
-                <option value="OUTER:코트">
-                  아우터 · 코트
-                </option>
-
-                <option value="OUTER:패딩">
-                  아우터 · 패딩
-                </option>
-
+                {Object.entries(CLOTHES_CATEGORIES).map(([value, { label }]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
               </select>
-
             </div>
 
             <div>
-
-              <label className="mb-2 block text-sm">
-                소재
-              </label>
-
+              <label htmlFor="clothes-type" className="mb-2 block text-sm">종류</label>
               <select
-                value={material}
-                onChange={(e) => setMaterial(e.target.value)}
+                id="clothes-type"
+                value={subType}
+                onChange={(event) => {
+                  setSubType(event.target.value);
+                  setMaterial(DEFAULT_MATERIAL);
+                }}
                 className={inputStyle}
               >
+                {CLOTHES_CATEGORIES[category].types.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
 
+            <div>
+              <label htmlFor="clothes-material" className="mb-2 block text-sm">소재</label>
+              <select
+                id="clothes-material"
+                value={material}
+                onChange={(event) => setMaterial(event.target.value)}
+                className={inputStyle}
+              >
                 <option value="WOOL">울</option>
                 <option value="COTTON">면</option>
                 <option value="POLYESTER">폴리에스터</option>
-                <option value="NYLON">나일론</option>
-
+                <option value="DOWN">다운</option>
+                <option value="LINEN">린넨</option>
+                <option value="DENIM">데님</option>
+                <option value="ETC">기타</option>
               </select>
-
             </div>
-
           </div>
 
           {/* 따뜻함 10단계 */}
 
-          <div>
+          <div hidden={isCarryItem}>
 
             <div className="mb-3 flex justify-between text-sm font-medium">
 
@@ -469,7 +462,7 @@ export default function Closet() {
 
           {/* 통풍 및 목 부분 */}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={isCarryItem ? "hidden" : "grid grid-cols-2 gap-4"}>
 
             <div>
 
@@ -577,10 +570,6 @@ export default function Closet() {
                 className={inputStyle}
               >
 
-                <option value="">
-                  지정 없음
-                </option>
-
                 {locations.map((location) => (
 
                   <option
@@ -591,6 +580,7 @@ export default function Closet() {
                   </option>
 
                 ))}
+                <option value="">지정 없음</option>
 
               </select>
 
@@ -665,51 +655,54 @@ export default function Closet() {
 
               <button
                 type="button"
-                onClick={() => setMultiple(!multiple)}
-                className="shrink-0 rounded-full border bg-white px-4 py-2 text-sm"
+                onClick={() => setMultiple((current) => !current)}
+                aria-pressed={multiple}
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-bold ${
+                  multiple ? "border-[#a50034] bg-[#a50034] text-white" : "border-gray-300 bg-white"
+                }`}
               >
-                {multiple
-                  ? "한 벌이에요"
-                  : "여러 벌이에요"}
+                여러 벌이에요
               </button>
-
             </div>
 
             {multiple && (
-
-              <div className="mt-4 flex flex-col gap-3">
+              <div className="mt-3 flex flex-col gap-3 border-t border-gray-200 pt-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <span>몇 벌인가요?</span>
+                  <button
+                    type="button"
+                    aria-label="한 벌 줄이기"
+                    disabled={pieces.length === 1}
+                    onClick={() => setPieces((prev) => prev.length > 1 ? prev.slice(0, -1) : prev)}
+                    className="h-9 w-9 rounded-xl border border-gray-300 bg-white disabled:opacity-50"
+                  >
+                    −
+                  </button>
+                  <output className="font-bold">{pieces.length + 1}벌</output>
+                  <button
+                    type="button"
+                    aria-label="한 벌 추가"
+                    onClick={() => setPieces((prev) => [...prev, ""])}
+                    className="h-9 w-9 rounded-xl border border-gray-300 bg-white"
+                  >
+                    +
+                  </button>
+                </div>
 
                 {pieces.map((piece, index) => (
-
-                  <div
-                    key={index}
-                    className="flex items-center gap-3"
-                  >
-
-                    <span className="shrink-0 text-sm">
-                      {index + 1}번째 옷
-                    </span>
-
+                  <div key={index} className="flex items-center gap-3">
+                    <label htmlFor={`piece-location-${index}`} className="w-24 shrink-0 text-sm">
+                      {index + 2}번째 벌
+                    </label>
                     <select
+                      id={`piece-location-${index}`}
                       value={piece}
-                      onChange={(e) => {
-
-                        setPieces((prev) =>
-                          prev.map((item, i) =>
-                            i === index
-                              ? e.target.value
-                              : item
-                          )
-                        );
-
+                      onChange={(event) => {
+                        const locationId = event.target.value;
+                        setPieces((prev) => prev.map((item, i) => i === index ? locationId : item));
                       }}
                       className={inputStyle}
                     >
-
-                      <option value="">
-                        지정 없음
-                      </option>
-
                       {locations.map((location) => (
 
                         <option
@@ -720,46 +713,22 @@ export default function Closet() {
                         </option>
 
                       ))}
+                      <option value="">지정 없음</option>
 
                     </select>
-
                   </div>
-
                 ))}
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPieces((prev) => [...prev, ""])
-                  }
-                  className="text-sm font-bold text-[#a50034]"
-                >
-                  + 한 벌 추가
-                </button>
-
-                {pieces.length > 2 && (
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPieces((prev) => prev.slice(0, -1))
-                    }
-                    className="text-sm text-gray-500"
-                  >
-                    - 한 벌 줄이기
-                  </button>
-
-                )}
-
+                <p className="text-xs text-gray-500">
+                  첫 번째 벌은 위에서 고른 위치를 사용해요. 나머지 벌은 위치를 각각 선택할 수 있어요.
+                </p>
               </div>
-
             )}
 
           </div>
 
           <p className="text-xs text-gray-500">
-            계절이 지나 보관해두었다면
-            '보관 중'으로 두세요.
+            계절이 지나 보관해두었다면 &apos;보관 중&apos;으로 두세요.
           </p>
 
           <hr className="my-2 border-gray-200" />
