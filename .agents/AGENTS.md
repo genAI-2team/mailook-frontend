@@ -166,6 +166,7 @@ frontend/          src 폴더 없이 프로젝트 맨 위에 둠
 - 기능이 아직 없는 화면도 `page.js`를 만들고, 화면 제목과 나가는 버튼만 있는 뼈대로 둡니다(라우팅 확인용).
 - **보온(조합 clo·적정 clo)·보정 계산은 프론트에서 하지 않습니다.** 서버가 준 값을 보여주기만 합니다.
 - 예외 하나: 따뜻한 정도 단계 변환은 프론트가 합니다. 서버는 옷마다 clo만 주고받으므로 `utils/warmth.js`의 `cloToLevel(clo)`(round(clo ÷ 0.08), 0 이하는 1, 최대 10)과 `levelToClo(level)`(level × 0.08)만 씁니다. 따뜻한 정도는 10단계(화면에서는 5칸 막대, 반 칸 = 0.5단계)로 보여줍니다.
+- 날씨 아이콘은 `components/weather/WeatherIcon.jsx`만 씁니다. `import WeatherIcon, { toWeatherIconType, WEATHER_LABELS } from "@/components/weather/WeatherIcon"` 입니다. 기상청 SKY·PTY는 `toWeatherIconType(sky, pty)`로 바꾸고, 맑음·구름·비 아이콘을 화면마다 새로 그리지 않습니다. 옆에 날씨 글자가 있으면 `label`은 비웁니다. 홈 날씨 띠 크기는 32입니다.
 - 추천을 AI가 만들지 못하면 서버가 규칙 기반 추천을 주고, 화면에는 그 안내 문구를 보여줍니다.
 - 착용 기록은 하루 1개이고, 피드백을 남긴 날은 '이걸로 입을게요'·'다른 조합 보기'·'바꾸기'·'직접 기록하기'를 숨기고 완료 문구만 보여줍니다.
 - 버튼·링크·입력은 실제 `<button>`, `<a>`, `<input>` + `<label>`을 씁니다. 아이콘만 있는 버튼에는 `aria-label`을 붙입니다.
