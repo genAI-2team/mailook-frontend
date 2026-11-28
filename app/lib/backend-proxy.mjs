@@ -4,7 +4,9 @@ export async function proxyBackend(request, path) {
   if (origin && origin !== new URL(request.url).origin) {
     return Response.json({ message: "허용되지 않은 요청입니다." }, { status: 403 });
   }
-  const headers = { "Content-Type": "application/json" };
+  const contentType = request.headers.get("content-type") || "application/json";
+  const isMultipart = contentType.toLowerCase().startsWith("multipart/form-data;");
+  const headers = { "Content-Type": isMultipart ? contentType : "application/json" };
   for (const name of ["authorization"]) {
     const value = request.headers.get(name);
     if (value) headers[name] = value;
@@ -14,7 +16,8 @@ export async function proxyBackend(request, path) {
     url.search = new URL(request.url).search;
     const response = await fetch(url, {
       method: request.method, headers,
-      body: ["GET", "HEAD"].includes(request.method) ? undefined : await request.text(),
+      body: ["GET", "HEAD"].includes(request.method) ? undefined
+        : isMultipart ? await request.arrayBuffer() : await request.text(),
       cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(15000),
     });
     const resultHeaders = new Headers({ "Cache-Control": "no-store" });
