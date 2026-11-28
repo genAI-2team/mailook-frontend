@@ -1,30 +1,34 @@
 
 "use client";
 
-import { createClothes, createClothesBatch } from "@/api/clothesApi";
-import { useState, useRef } from "react";
+import {
+  createClothes,
+  createStorageLocation,
+  getStorageLocations,
+} from "@/api/clothesApi";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/common";
+import { levelToClo } from "@/utils/warmth";
+import {
+  BREATHABILITY_OPTIONS,
+  CLOTHES_CATEGORY,
+  CLOTHES_CATEGORIES,
+  DEFAULT_CATEGORY,
+  DEFAULT_MATERIAL,
+  DEFAULT_STORAGE_LOCATIONS,
+  DEFAULT_STORAGE_STATUS,
+  DEFAULT_WARMTH_LEVEL,
+  MATERIAL_LABELS,
+  NECK_COVER_OPTIONS,
+  NO_STORAGE_LOCATION,
+  STORAGE_STATUS_LABELS,
+  WARMTH_LEVELS,
+} from "../enums/clothesOptions";
 
-const CLOTHES_CATEGORIES = {
-  TOP: { label: "상의", types: ["니트", "셔츠", "반팔"] },
-  BOTTOM: { label: "하의", types: ["청바지", "슬랙스"] },
-  OUTER: { label: "아우터", types: ["코트", "패딩"] },
-  SHOES: { label: "신발", types: ["운동화", "부츠"] },
-  ACCESSORY: { label: "액세서리", types: ["목도리", "장갑"] },
-  CARRY_ITEM: { label: "소지품", types: ["우산", "손난로"] },
-};
-const DEFAULT_CATEGORY = "TOP";
-const DEFAULT_MATERIAL = "WOOL";
-
-const DEFAULT_LOCATIONS = [
-  { id: "temp-master-closet", name: "안방 옷장" },
-  { id: "temp-master-drawer", name: "안방 서랍 2칸" },
-  { id: "temp-small-room-closet", name: "작은방 옷장" },
-  { id: "temp-shoe-cabinet", name: "신발장" },
-  { id: "temp-storage-box", name: "창고 리빙박스" },
-];
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/gif"];
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
 export default function Closet() {
   const router = useRouter();
@@ -45,33 +49,62 @@ export default function Closet() {
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const [subType, setSubType] = useState(CLOTHES_CATEGORIES[DEFAULT_CATEGORY].types[0]);
   const [material, setMaterial] = useState(DEFAULT_MATERIAL);
-  const isCarryItem = category === "CARRY_ITEM";
+  const isCarryItem = category === CLOTHES_CATEGORY.CARRY_ITEM;
 
   // ========================================
   // 3. 보온력, 통풍, 목 부분
   // ========================================
 
-  const [warmth, setWarmth] = useState(5);
-  const [breathability, setBreathability] = useState(1);
-  const [neckCover, setNeckCover] = useState(false);
+  const [warmth, setWarmth] = useState(DEFAULT_WARMTH_LEVEL);
+  const [breathability, setBreathability] = useState(BREATHABILITY_OPTIONS[0].value);
+  const [neckCover, setNeckCover] = useState(NECK_COVER_OPTIONS[0].value);
 
   // ========================================
   // 4. 보관 위치 및 상태
   // ========================================
 
-  const [storageLocationId, setStorageLocationId] = useState("");
-  const [storageStatus, setStorageStatus] = useState("AVAILABLE");
+  const [storageLocationId, setStorageLocationId] = useState(NO_STORAGE_LOCATION.id);
+  const [storageStatus, setStorageStatus] = useState(DEFAULT_STORAGE_STATUS);
 
-  const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
+  const [locations, setLocations] = useState([]);
+  const locationOptions = [
+    ...locations.map(({ storageLocationId, name }) => ({ id: String(storageLocationId), name })),
+    ...DEFAULT_STORAGE_LOCATIONS.filter((option) => !locations.some(({ name }) => name === option.name)),
+    NO_STORAGE_LOCATION,
+  ];
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const [locationLoadError, setLocationLoadError] = useState("");
   const [newLocation, setNewLocation] = useState("");
   const [locationOpen, setLocationOpen] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
+  const savingLocationRef = useRef(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    async function loadLocations() {
+      try {
+        const savedLocations = await getStorageLocations(signal);
+        if (!signal.aborted) setLocations(savedLocations);
+      } catch (error) {
+        if (!signal.aborted) {
+          setLocationLoadError(error.response?.data?.message || "보관 위치를 불러오지 못했습니다.");
+        }
+      } finally {
+        if (!signal.aborted) setLoadingLocations(false);
+      }
+    }
+    loadLocations();
+    return () => controller.abort();
+  }, []);
 
   // ========================================
   // 5. 여러 벌 등록
   // ========================================
 
   const [multiple, setMultiple] = useState(false);
-  const [pieces, setPieces] = useState([""]);
+  // null인 벌은 위에서 선택한 보관 위치를 따른다.
+  const [pieces, setPieces] = useState([null]);
 
   // 저장 중 상태
   const [saving, setSaving] = useState(false);
@@ -84,8 +117,8 @@ export default function Closet() {
   const handleImage = (file) => {
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      alert("이미지 파일만 등록할 수 있습니다.");
+    if (!PHOTO_TYPES.includes(file.type) || file.size === 0 || file.size > MAX_PHOTO_BYTES) {
+      alert("10MB 이하의 JPG, PNG, GIF 사진을 선택해 주세요.");
       return;
     }
 
@@ -101,25 +134,32 @@ export default function Closet() {
   };
 
   // ========================================
-  // 7. 임시 보관 위치 추가
+  // 7. 보관 위치 등록
   // ========================================
 
-  const handleAddLocation = () => {
-    if (!newLocation.trim()) return;
+  const handleAddLocation = async () => {
+    const name = newLocation.trim();
+    if (!name || savingLocationRef.current) return;
 
-    const id = `temp-${Date.now()}`;
-
-    setLocations((prev) => [
-      ...prev,
-      {
-        id,
-        name: newLocation.trim()
+    savingLocationRef.current = true;
+    setSavingLocation(true);
+    try {
+      const location = await createStorageLocation(name);
+      setLocations((previous) => [...previous, location]);
+      const savedId = String(location.storageLocationId);
+      const defaultLocation = DEFAULT_STORAGE_LOCATIONS.find((option) => option.name === location.name);
+      setStorageLocationId(savedId);
+      if (defaultLocation) {
+        setPieces((previous) => previous.map((piece) => piece === defaultLocation.id ? savedId : piece));
       }
-    ]);
-
-    setStorageLocationId(id);
-    setNewLocation("");
-    setLocationOpen(false);
+      setNewLocation("");
+      setLocationOpen(false);
+    } catch (error) {
+      alert(error.response?.data?.message || "보관 위치를 추가하지 못했습니다.");
+    } finally {
+      savingLocationRef.current = false;
+      setSavingLocation(false);
+    }
   };
 
   // ========================================
@@ -130,17 +170,20 @@ export default function Closet() {
 
     if (savingRef.current) return;
 
+    if (!imageFile) {
+      alert("옷 사진을 첨부해 주세요.");
+      return;
+    }
+
     // 이름 필수 입력 확인
     if (!name.trim()) {
       alert("옷 이름을 입력해주세요.");
       return;
     }
 
-    const locationIds = multiple ? [storageLocationId, ...pieces] : [storageLocationId];
-    if (locationIds.some((id) => id.startsWith("temp-"))) {
-      alert("보관 위치 저장은 아직 지원되지 않습니다. '지정 없음'을 선택해주세요.");
-      return;
-    }
+    const locationIds = multiple
+      ? [storageLocationId, ...pieces.map((locationId) => locationId ?? storageLocationId)]
+      : [storageLocationId];
 
     // 백엔드 DTO에 전달할 JSON 데이터
     const clothesData = {
@@ -149,36 +192,43 @@ export default function Closet() {
       subType: subType,
       material: material,
 
-      clo: isCarryItem ? null : Number((warmth * 0.08).toFixed(2)),
+      clo: isCarryItem ? null : Number(levelToClo(warmth).toFixed(2)),
 
       breathability: isCarryItem ? null : breathability,
 
       neckCover:
-        category === "TOP" ? neckCover : false,
+        category === CLOTHES_CATEGORY.TOP ? neckCover : false,
 
       storageStatus: storageStatus,
 
       userEdited: true,
-
-      // 현재는 이미지 URL 테스트
-      imageUrl: "https://example.com/coat.jpg"
     };
-    const storageLocations = locationIds.map((id) => ({
-      storageLocationId: id ? Number(id) : null
-    }));
-
-    console.log("옷 등록 요청 데이터:", clothesData);
-    console.log("선택한 이미지 파일:", imageFile);
 
     savingRef.current = true;
     setSaving(true);
 
     try {
+      const resolvedIds = new Map();
+      for (const id of new Set(locationIds)) {
+        const defaultLocation = DEFAULT_STORAGE_LOCATIONS.find((option) => option.id === id);
+        if (!defaultLocation) {
+          resolvedIds.set(id, id === NO_STORAGE_LOCATION.id ? null : Number(id));
+          continue;
+        }
 
-      const response = multiple
-        ? await createClothesBatch({ ...clothesData, pieces: storageLocations })
-        : await createClothes({ ...clothesData, ...storageLocations[0] });
-      console.log("서버 응답:", response);
+        const location = await createStorageLocation(defaultLocation.name);
+        const savedId = String(location.storageLocationId);
+        resolvedIds.set(id, location.storageLocationId);
+        setLocations((previous) => [...previous, location]);
+        setStorageLocationId((previous) => previous === id ? savedId : previous);
+        setPieces((previous) => previous.map((piece) => piece === id ? savedId : piece));
+      }
+
+      const storageLocations = locationIds.map((id) => ({ storageLocationId: resolvedIds.get(id) }));
+      await createClothes({
+        ...clothesData,
+        ...(multiple ? { pieces: storageLocations } : storageLocations[0]),
+      }, imageFile);
 
       alert("옷 등록 성공!");
 
@@ -252,7 +302,7 @@ export default function Closet() {
 
           <input
             type="file"
-            accept="image/*"
+            accept={PHOTO_TYPES.join(",")}
             ref={fileInputRef}
             className="hidden"
             onChange={(e) => {
@@ -401,13 +451,9 @@ export default function Closet() {
                 onChange={(event) => setMaterial(event.target.value)}
                 className={inputStyle}
               >
-                <option value="WOOL">울</option>
-                <option value="COTTON">면</option>
-                <option value="POLYESTER">폴리에스터</option>
-                <option value="DOWN">다운</option>
-                <option value="LINEN">린넨</option>
-                <option value="DENIM">데님</option>
-                <option value="ETC">기타</option>
+                {Object.entries(MATERIAL_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -426,10 +472,7 @@ export default function Closet() {
 
             <div className="flex gap-1">
 
-              {Array.from(
-                { length: 10 },
-                (_, i) => i + 1
-              ).map((level) => (
+              {WARMTH_LEVELS.map((level) => (
 
                 <button
                   key={level}
@@ -472,19 +515,19 @@ export default function Closet() {
 
               <div className="flex gap-1">
 
-                {["낮음", "보통", "높음"].map((text, i) => (
+                {BREATHABILITY_OPTIONS.map(({ value, label }) => (
 
                   <button
-                    key={text}
+                    key={value}
                     type="button"
-                    onClick={() => setBreathability(i + 1)}
+                    onClick={() => setBreathability(value)}
                     className={
-                      breathability === i + 1
+                      breathability === value
                         ? activeStyle
                         : inactiveStyle
                     }
                   >
-                    {text}
+                    {label}
                   </button>
 
                 ))}
@@ -493,7 +536,7 @@ export default function Closet() {
 
             </div>
 
-            {category === "TOP" && (
+            {category === CLOTHES_CATEGORY.TOP && (
 
               <div>
 
@@ -503,29 +546,16 @@ export default function Closet() {
 
                 <div className="flex gap-1">
 
-                  <button
-                    type="button"
-                    onClick={() => setNeckCover(false)}
-                    className={
-                      !neckCover
-                        ? activeStyle
-                        : inactiveStyle
-                    }
-                  >
-                    드러남
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setNeckCover(true)}
-                    className={
-                      neckCover
-                        ? activeStyle
-                        : inactiveStyle
-                    }
-                  >
-                    덮여짐
-                  </button>
+                  {NECK_COVER_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setNeckCover(value)}
+                      className={neckCover === value ? activeStyle : inactiveStyle}
+                    >
+                      {label}
+                    </button>
+                  ))}
 
                 </div>
 
@@ -570,27 +600,24 @@ export default function Closet() {
                 className={inputStyle}
               >
 
-                {locations.map((location) => (
-
-                  <option
-                    key={location.id}
-                    value={location.id}
-                  >
+                {locationOptions.map((location) => (
+                  <option key={location.id} value={location.id}>
                     {location.name}
                   </option>
-
                 ))}
-                <option value="">지정 없음</option>
 
               </select>
 
               <button
                 type="button"
                 onClick={() => setLocationOpen(true)}
-                className="mt-3 text-sm font-bold text-[#a50034]"
+                disabled={loadingLocations || saving}
+                className="mt-3 text-sm font-bold text-[#a50034] disabled:opacity-50"
               >
                 + 새 위치 만들기
               </button>
+              {loadingLocations && <p role="status" className="mt-2 text-xs text-gray-500">보관 위치를 불러오는 중이에요.</p>}
+              {locationLoadError && <p role="alert" className="mt-2 text-xs text-red-700">{locationLoadError}</p>}
 
             </div>
 
@@ -602,29 +629,17 @@ export default function Closet() {
 
               <div className="flex gap-1">
 
-                <button
-                  type="button"
-                  onClick={() => setStorageStatus("AVAILABLE")}
-                  className={
-                    storageStatus === "AVAILABLE"
-                      ? activeStyle
-                      : inactiveStyle
-                  }
-                >
-                  바로 꺼낼 수 있음
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setStorageStatus("STORED")}
-                  className={
-                    storageStatus === "STORED"
-                      ? activeStyle
-                      : inactiveStyle
-                  }
-                >
-                  보관 중
-                </button>
+                {Object.entries(STORAGE_STATUS_LABELS).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setStorageStatus(value)}
+                    aria-pressed={storageStatus === value}
+                    className={storageStatus === value ? activeStyle : inactiveStyle}
+                  >
+                    {label}
+                  </button>
+                ))}
 
               </div>
 
@@ -682,7 +697,7 @@ export default function Closet() {
                   <button
                     type="button"
                     aria-label="한 벌 추가"
-                    onClick={() => setPieces((prev) => [...prev, ""])}
+                    onClick={() => setPieces((prev) => [...prev, null])}
                     className="h-9 w-9 rounded-xl border border-gray-300 bg-white"
                   >
                     +
@@ -696,24 +711,18 @@ export default function Closet() {
                     </label>
                     <select
                       id={`piece-location-${index}`}
-                      value={piece}
+                      value={piece ?? storageLocationId}
                       onChange={(event) => {
                         const locationId = event.target.value;
                         setPieces((prev) => prev.map((item, i) => i === index ? locationId : item));
                       }}
                       className={inputStyle}
                     >
-                      {locations.map((location) => (
-
-                        <option
-                          key={location.id}
-                          value={location.id}
-                        >
+                      {locationOptions.map((location) => (
+                        <option key={location.id} value={location.id}>
                           {location.name}
                         </option>
-
                       ))}
-                      <option value="">지정 없음</option>
 
                     </select>
                   </div>
@@ -748,7 +757,7 @@ export default function Closet() {
 
             <Button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || loadingLocations}
             >
               {saving ? "저장 중..." : "옷장에 저장"}
             </Button>
@@ -787,12 +796,13 @@ export default function Closet() {
               <Button
                 variant="secondary"
                 onClick={() => setLocationOpen(false)}
+                disabled={savingLocation}
               >
                 취소
               </Button>
 
-              <Button onClick={handleAddLocation}>
-                추가
+              <Button onClick={handleAddLocation} disabled={savingLocation || !newLocation.trim()}>
+                {savingLocation ? "추가 중..." : "추가"}
               </Button>
 
             </div>
