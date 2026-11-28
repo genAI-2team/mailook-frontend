@@ -1,6 +1,18 @@
 // 기존에 발급받은 로그인 상태를 유지하도록 저장 키의 값은 변경하지 않는다.
 export const ACCESS_TOKEN_KEY = "mailook_access_token";
 
+// 기본 설정. 상수 값은 서버 ENUM 이름과 같다.
+export const WARMTH_STYLE = {
+  INNER_LAYER: "INNER_LAYER",
+  OUTER_LAYER: "OUTER_LAYER",
+  ANY: "ANY",
+};
+
+export const SENSITIVITY = {
+  LESS: "LESS",
+  NORMAL: "NORMAL",
+  MORE: "MORE",
+};
 // [신규 — 2026-11-27] 장소 입력 공통 상수. 백엔드 enum의 이름과 동일하게 사용한다.
 export const PLACE_TYPE = { HOME: "HOME", ACTIVITY: "ACTIVITY" };
 export const PLACE_ENVIRONMENT = { INDOOR: "INDOOR", OUTDOOR: "OUTDOOR", MIXED: "MIXED" };

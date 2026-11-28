@@ -1,22 +1,7 @@
-"use client";
+import Preference from "./preference";
 
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/common";
+export const metadata = { title: "MaiLook | 초기 내 성향 고르기" };
 
 export default function Page() {
-  const router = useRouter();
-
-  return (
-    <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-4 px-10 py-8">
-      <h1 className="text-[28px] font-bold text-ink">0-3 내 성향</h1>
-      <div className="flex flex-wrap gap-3">
-        {/* [변경 전 — 2026-11-28] <Button href="/signup/info" variant="secondary"> */}
-        {/* [변경 후 — 2026-11-28] 이전 장소 화면의 새 주소 */}
-        <Button href="/places" variant="secondary">
-          이전
-        </Button>
-        <Button onClick={() => router.push("/")}>가입 완료</Button>
-      </div>
-    </main>
-  );
+  return <Preference />;
 }
