@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
-import { logExecution, logUiEvent } from "@/app/lib/logger";
 import BottomTab from "./BottomTab";
 import { MENUS, activeFromPath, isSignupPath } from "./nav";
 
@@ -16,12 +15,12 @@ export default function Header({ active }) {
   const router = useRouter();
   const { user, isLoggedIn, isRestoring, authError, retryRestore, logout } = useAuth();
 
-  function handleLogout(event) {
-    logUiEvent(event, "Header.handleLogout");
+  function handleLogout() {
+
     try {
       logout();
     } finally {
-      logExecution("NAVIGATE Header.handleLogout → /login");
+
       router.push("/login");
     }
   }
