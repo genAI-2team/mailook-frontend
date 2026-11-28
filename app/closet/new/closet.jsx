@@ -12,20 +12,36 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/common";
 import { levelToClo } from "@/utils/warmth";
 import {
-  BREATHABILITY_OPTIONS,
   CLOTHES_CATEGORY,
   CLOTHES_CATEGORIES,
   DEFAULT_CATEGORY,
   DEFAULT_MATERIAL,
-  DEFAULT_STORAGE_LOCATIONS,
   DEFAULT_STORAGE_STATUS,
-  DEFAULT_WARMTH_LEVEL,
   MATERIAL_LABELS,
-  NECK_COVER_OPTIONS,
-  NO_STORAGE_LOCATION,
   STORAGE_STATUS_LABELS,
-  WARMTH_LEVELS,
-} from "../enums/clothesOptions";
+} from "@/constants";
+
+const WARMTH_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const DEFAULT_WARMTH_LEVEL = 5;
+
+const BREATHABILITY_OPTIONS = [
+  { value: 1, label: "낮음" },
+  { value: 2, label: "보통" },
+  { value: 3, label: "높음" },
+];
+const NECK_COVER_OPTIONS = [
+  { value: false, label: "드러남" },
+  { value: true, label: "덮여짐" },
+];
+
+const NO_STORAGE_LOCATION = { id: "", name: "지정 없음" };
+const DEFAULT_STORAGE_LOCATIONS = [
+  { id: "default-master-closet", name: "안방 옷장" },
+  { id: "default-master-drawer", name: "안방 서랍 2칸" },
+  { id: "default-small-room-closet", name: "작은방 옷장" },
+  { id: "default-shoe-cabinet", name: "신발장" },
+  { id: "default-storage-box", name: "창고 리빙박스" },
+];
 
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/gif"];
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
