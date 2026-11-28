@@ -1,7 +1,11 @@
 import { proxyBackend } from "../../../lib/backend-proxy.mjs";
 
 const methods = {
-  login: "POST", logout: "POST", insert: "POST",
+  // [변경 전 — 2026-11-27] login: "POST", logout: "POST", insert: "POST",
+  // [변경 후 — 2026-11-27] 로그인은 app/api/auth/login/route.js로 분리한다.
+  // [변경 전 — 2026-11-27] logout: "POST", insert: "POST",
+  // [변경 후 — 2026-11-27] 회원가입은 app/api/auth/signup/route.js로 분리한다.
+  logout: "POST",
   selectById: "GET", selectCount: "GET", selectPage: "GET", update: "PUT", deleteById: "DELETE",
 };
 
