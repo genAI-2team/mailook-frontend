@@ -6,10 +6,12 @@ import {
   createStorageLocation,
   getStorageLocations,
 } from "@/api/clothesApi";
-import { useEffect, useState, useRef } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/common";
+import {
+  AlertBox, Button, Chip, Input, Loading, Modal, PhotoUpload, Segmented,
+  Select, WarmthPicker, useToast,
+} from "@/components/common";
 import { levelToClo } from "@/utils/warmth";
 import {
   CLOTHES_CATEGORY,
@@ -21,7 +23,6 @@ import {
   STORAGE_STATUS_LABELS,
 } from "@/constants";
 
-const WARMTH_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const DEFAULT_WARMTH_LEVEL = 5;
 
 const BREATHABILITY_OPTIONS = [
@@ -48,18 +49,22 @@ const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
 export default function Closet() {
   const router = useRouter();
-  const fileInputRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const { showToast } = useToast();
+  const [saveError, setSaveError] = useState("");
+  const [photoError, setPhotoError] = useState("");
+  const [locationError, setLocationError] = useState("");
 
-  // ========================================
-  // 1. 이미지 관련 상태
-  // ========================================
+  // 이미지 관련 상태
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
 
-  // ========================================
-  // 2. 옷 정보
-  // ========================================
+  useEffect(() => () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+  }, [imagePreview]);
+
+  // 옷 정보
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
@@ -67,17 +72,13 @@ export default function Closet() {
   const [material, setMaterial] = useState(DEFAULT_MATERIAL);
   const isCarryItem = category === CLOTHES_CATEGORY.CARRY_ITEM;
 
-  // ========================================
-  // 3. 보온력, 통풍, 목 부분
-  // ========================================
+  // 보온력, 통풍, 목 부분
 
   const [warmth, setWarmth] = useState(DEFAULT_WARMTH_LEVEL);
   const [breathability, setBreathability] = useState(BREATHABILITY_OPTIONS[0].value);
   const [neckCover, setNeckCover] = useState(NECK_COVER_OPTIONS[0].value);
 
-  // ========================================
-  // 4. 보관 위치 및 상태
-  // ========================================
+  // 보관 위치 및 상태
 
   const [storageLocationId, setStorageLocationId] = useState(NO_STORAGE_LOCATION.id);
   const [storageStatus, setStorageStatus] = useState(DEFAULT_STORAGE_STATUS);
@@ -114,9 +115,7 @@ export default function Closet() {
     return () => controller.abort();
   }, []);
 
-  // ========================================
-  // 5. 여러 벌 등록
-  // ========================================
+  // 여러 벌 등록
 
   const [multiple, setMultiple] = useState(false);
   // null인 벌은 위에서 선택한 보관 위치를 따른다.
@@ -126,37 +125,29 @@ export default function Closet() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
-  // ========================================
-  // 6. 이미지 선택 및 미리보기
-  // ========================================
+  // 이미지 선택 및 미리보기
 
   const handleImage = (file) => {
     if (!file) return;
 
     if (!PHOTO_TYPES.includes(file.type) || file.size === 0 || file.size > MAX_PHOTO_BYTES) {
-      alert("10MB 이하의 JPG, PNG, GIF 사진을 선택해 주세요.");
+      setPhotoError("10MB 이하의 JPG, PNG, GIF 사진을 선택해 주세요.");
       return;
     }
 
     setImageFile(file);
 
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      setImagePreview(reader.result);
-    };
-
-    reader.readAsDataURL(file);
+    setPhotoError("");
+    setImagePreview(URL.createObjectURL(file));
   };
 
-  // ========================================
-  // 7. 보관 위치 등록
-  // ========================================
+  // 보관 위치 등록
 
   const handleAddLocation = async () => {
     const name = newLocation.trim();
     if (!name || savingLocationRef.current) return;
 
+    setLocationError("");
     savingLocationRef.current = true;
     setSavingLocation(true);
     try {
@@ -171,29 +162,28 @@ export default function Closet() {
       setNewLocation("");
       setLocationOpen(false);
     } catch (error) {
-      alert(error.response?.data?.message || "보관 위치를 추가하지 못했습니다.");
+      setLocationError(error.response?.data?.message || "보관 위치를 추가하지 못했습니다.");
     } finally {
       savingLocationRef.current = false;
       setSavingLocation(false);
     }
   };
 
-  // ========================================
-  // 8. 옷 등록 API 요청 (핵심 수정 부분)
-  // ========================================
+  // 옷 등록 API 요청
 
   const handleSave = async () => {
 
     if (savingRef.current) return;
+    setSaveError("");
 
     if (!imageFile) {
-      alert("옷 사진을 첨부해 주세요.");
+      setSaveError("옷 사진을 첨부해 주세요.");
       return;
     }
 
     // 이름 필수 입력 확인
     if (!name.trim()) {
-      alert("옷 이름을 입력해주세요.");
+      setSaveError("옷 이름을 입력해 주세요.");
       return;
     }
 
@@ -246,26 +236,14 @@ export default function Closet() {
         ...(multiple ? { pieces: storageLocations } : storageLocations[0]),
       }, imageFile);
 
-      alert("옷 등록 성공!");
+      showToast("옷을 등록했어요.");
 
       // 등록 성공 후 내 옷장으로 이동
       router.push("/closet");
 
     } catch (error) {
 
-      console.error("옷 등록 실패:", error);
-
-      console.error(
-        "서버 오류 응답:",
-        error.response?.data
-      );
-
-      console.error(
-        "HTTP 상태 코드:",
-        error.response?.status
-      );
-
-      alert(error.response?.data?.message || "옷 등록에 실패했습니다. Console을 확인해주세요.");
+      setSaveError(error.response?.data?.message || "옷을 등록하지 못했습니다.");
 
     } finally {
 
@@ -275,560 +253,236 @@ export default function Closet() {
     }
   };
 
-  // ========================================
-  // 9. 공통 CSS 스타일
-  // ========================================
+  const closeLocationModal = useCallback(() => {
+    if (savingLocationRef.current) return;
+    setNewLocation("");
+    setLocationError("");
+    setLocationOpen(false);
+  }, []);
 
-  const inputStyle =
-    "w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm";
-
-  const activeStyle =
-    "flex-1 rounded-xl border border-[#a50034] bg-[#a50034] py-2.5 text-sm font-bold text-white";
-
-  const inactiveStyle =
-    "flex-1 rounded-xl border border-gray-300 bg-white py-2.5 text-sm";
-
-  // ========================================
-  // 10. 화면 구성
-  // ========================================
+  const storageOptions = locationOptions.map(({ id, name }) => ({ value: id, label: name }));
+  const categoryOptions = Object.entries(CLOTHES_CATEGORIES).map(([value, { label }]) => ({ value, label }));
+  const materialOptions = Object.entries(MATERIAL_LABELS).map(([value, label]) => ({ value, label }));
+  const statusOptions = Object.entries(STORAGE_STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
   return (
-    <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-5 px-6 py-8 md:px-10">
+    <main className="mx-auto flex w-full max-w-300 flex-1 flex-col gap-5 px-6 py-8 md:px-10">
+      <Button href="/closet" variant="text" className="w-fit">‹ 내 옷장</Button>
+      <h1 className="text-[28px] font-bold text-ink">옷 등록</h1>
 
-      {/* 상단 제목 */}
-
-      <button
-        onClick={() => router.push("/closet")}
-        className="w-fit text-sm text-gray-500"
-      >
-        ‹ 내 옷장
-      </button>
-
-      <h1 className="text-[28px] font-bold text-ink">
-        옷 등록
-      </h1>
-
-      <div className="grid grid-cols-1 gap-10 md:grid-cols-[38%_1fr]">
-
-        {/* ============================== */}
-        {/* 왼쪽: 이미지 업로드 */}
-        {/* ============================== */}
-
+      <div className="grid gap-10 md:grid-cols-[38%_1fr]">
         <section className="flex flex-col gap-3">
-
-          <input
-            type="file"
-            accept={PHOTO_TYPES.join(",")}
-            ref={fileInputRef}
-            className="hidden"
-            onChange={(e) => {
-              handleImage(e.target.files?.[0]);
-              e.target.value = "";
-            }}
+          <PhotoUpload
+            title="옷 사진 올리기"
+            height="clamp(240px, 30vw, 440px)"
+            previewUrl={imagePreview}
+            onSelect={handleImage}
           />
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              handleImage(e.dataTransfer.files?.[0]);
-            }}
-            className="relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50"
-          >
-
-            {imagePreview ? (
-
-              <Image
-                src={imagePreview}
-                alt="업로드한 옷"
-                fill
-                unoptimized
-                className="object-contain"
+          {!imagePreview && (
+            <>
+              <Input
+                ref={photoInputRef}
+                type="file"
+                accept={PHOTO_TYPES.join(",")}
+                hidden
+                onChange={(event) => {
+                  handleImage(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
               />
-
-            ) : (
-
-              <>
-                <span className="mb-3 text-3xl">
-                  📷
-                </span>
-
-                <p className="font-bold">
-                  업로드한 옷 사진
-                </p>
-
-                <p className="mt-2 text-xs text-gray-500">
-                  끌어다 놓거나 눌러서 골라주세요
-                </p>
-              </>
-
-            )}
-
-          </button>
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={inputStyle}
-          >
-            다른 사진으로 바꾸기
-          </button>
-
-          <p className="text-xs text-gray-500">
-            직접 찍은 사진이 없으면 쇼핑몰 상품 사진을
-            저장해서 올려도 돼요.
-          </p>
-
+              <Button variant="secondary" className="w-full" onClick={() => photoInputRef.current?.click()}>
+                다른 사진으로 바꾸기
+              </Button>
+            </>
+          )}
+          {photoError && <AlertBox message={photoError} />}
+          <p className="text-xs text-sub">쇼핑몰 상품 사진을 저장해서 올려도 돼요.</p>
         </section>
 
-        {/* ============================== */}
-        {/* 오른쪽: 옷 정보 입력 */}
-        {/* ============================== */}
-
-        <section className="flex flex-col gap-5">
-
+        <section className="flex min-w-0 flex-col gap-5">
           <div>
-            <h2 className="text-lg font-bold">
-              AI 분류 결과
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              현재는 직접 입력해주세요.
-              AI 자동 분류는 추후 연결됩니다.
-            </p>
+            <h2 className="text-lg font-bold">AI 분류 결과</h2>
+            <p className="mt-1 text-sm text-sub">AI가 채워둔 값이에요. 다르면 직접 고쳐주세요.</p>
+          </div>
+          <Input
+            label="이름"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="예: 울 터틀넥 니트"
+            hint="옷장과 추천에 이 이름으로 보여요."
+            required
+          />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Select label="분류" options={categoryOptions} value={category} onChange={(value) => {
+              setCategory(value);
+              setSubType(CLOTHES_CATEGORIES[value].types[0]);
+              setMaterial(DEFAULT_MATERIAL);
+            }} />
+            <Select label="종류" options={CLOTHES_CATEGORIES[category].types} value={subType} onChange={(value) => {
+              setSubType(value);
+              setMaterial(DEFAULT_MATERIAL);
+            }} />
+            <Select label="소재" options={materialOptions} value={material} onChange={setMaterial} />
           </div>
 
-          {/* 옷 이름 */}
-
-          <div>
-
-            <label className="mb-2 block text-sm">
-              이름
-            </label>
-
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="예: 울 터틀넥 니트"
-              className={inputStyle}
-            />
-
-            <p className="mt-2 text-xs text-gray-500">
-              옷장과 추천에 이 이름으로 보여요.
-            </p>
-
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label htmlFor="clothes-category" className="mb-2 block text-sm">분류</label>
-              <select
-                id="clothes-category"
-                value={category}
-                onChange={(event) => {
-                  const nextCategory = event.target.value;
-                  setCategory(nextCategory);
-                  setSubType(CLOTHES_CATEGORIES[nextCategory].types[0]);
-                  setMaterial(DEFAULT_MATERIAL);
-                }}
-                className={inputStyle}
-              >
-                {Object.entries(CLOTHES_CATEGORIES).map(([value, { label }]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="clothes-type" className="mb-2 block text-sm">종류</label>
-              <select
-                id="clothes-type"
-                value={subType}
-                onChange={(event) => {
-                  setSubType(event.target.value);
-                  setMaterial(DEFAULT_MATERIAL);
-                }}
-                className={inputStyle}
-              >
-                {CLOTHES_CATEGORIES[category].types.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="clothes-material" className="mb-2 block text-sm">소재</label>
-              <select
-                id="clothes-material"
-                value={material}
-                onChange={(event) => setMaterial(event.target.value)}
-                className={inputStyle}
-              >
-                {Object.entries(MATERIAL_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* 따뜻함 10단계 */}
-
-          <div hidden={isCarryItem}>
-
-            <div className="mb-3 flex justify-between text-sm font-medium">
-
-              <span>얇음 · 더운 날</span>
-
-              <span>두꺼움 · 추운 날</span>
-
-            </div>
-
-            <div className="flex gap-1">
-
-              {WARMTH_LEVELS.map((level) => (
-
-                <button
-                  key={level}
-                  type="button"
-                  aria-label={`따뜻함 ${level}단계`}
-                  aria-pressed={level === warmth}
-                  onClick={() => setWarmth(level)}
-                  className={`h-3 flex-1 rounded-full ${
-                    level <= warmth
-                      ? "bg-orange-500"
-                      : "bg-gray-200"
-                  }`}
-                />
-
-              ))}
-
-            </div>
-
-            <div className="mt-2 flex justify-between text-xs text-gray-500">
-
-              <span>직접 조절할 수 있어요.</span>
-
-              <span>
-                {warmth}단계
-              </span>
-
-            </div>
-
-          </div>
-
-          {/* 통풍 및 목 부분 */}
-
-          <div className={isCarryItem ? "hidden" : "grid grid-cols-2 gap-4"}>
-
-            <div>
-
-              <label className="mb-2 block text-sm">
-                통풍
-              </label>
-
-              <div className="flex gap-1">
-
-                {BREATHABILITY_OPTIONS.map(({ value, label }) => (
-
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setBreathability(value)}
-                    className={
-                      breathability === value
-                        ? activeStyle
-                        : inactiveStyle
-                    }
-                  >
-                    {label}
-                  </button>
-
-                ))}
-
-              </div>
-
-            </div>
-
-            {category === CLOTHES_CATEGORY.TOP && (
-
-              <div>
-
-                <label className="mb-2 block text-sm">
-                  목 부분
-                </label>
-
-                <div className="flex gap-1">
-
-                  {NECK_COVER_OPTIONS.map(({ value, label }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setNeckCover(value)}
-                      className={neckCover === value ? activeStyle : inactiveStyle}
-                    >
-                      {label}
-                    </button>
-                  ))}
-
+          {!isCarryItem && (
+            <>
+              <WarmthPicker value={warmth} onChange={setWarmth} hint="직접 조절할 수 있어요." />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-[13px] font-medium">통풍</p>
+                  <Segmented
+                    label="통풍"
+                    options={BREATHABILITY_OPTIONS}
+                    value={breathability}
+                    onChange={setBreathability}
+                  />
+                  <p className="mt-2 text-xs text-sub">
+                    덥고 습한 날 추천에 써요.
+                  </p>
                 </div>
-
+                {category === CLOTHES_CATEGORY.TOP && (
+                  <div>
+                    <p className="mb-2 text-[13px] font-medium">목 부분</p>
+                    <Segmented
+                      label="목 부분"
+                      options={NECK_COVER_OPTIONS}
+                      value={neckCover}
+                      onChange={setNeckCover}
+                    />
+                    <p className="mt-2 text-xs text-sub">
+                      상의만 정해요. 바람 부는 날 추천에 써요.
+                    </p>
+                  </div>
+                )}
               </div>
+            </>
+          )}
 
-            )}
-
+          <div className="border-t border-line pt-5">
+            <h2 className="text-lg font-bold">보관 위치</h2>
+            <p className="mt-1 text-sm text-sub">추천받을 때 어디서 꺼내면 되는지 같이 알려드려요.</p>
           </div>
-
-          <hr className="my-2 border-gray-200" />
-
-          {/* ============================== */}
-          {/* 보관 위치 */}
-          {/* ============================== */}
-
-          <div>
-
-            <h2 className="text-lg font-bold">
-              보관 위치
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              추천받을 때 어디서 꺼내면 되는지
-              같이 알려드려요.
-            </p>
-
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-
-            <div>
-
-              <label className="mb-2 block text-sm">
-                위치
-              </label>
-
-              <select
-                value={storageLocationId}
-                onChange={(e) =>
-                  setStorageLocationId(e.target.value)
-                }
-                className={inputStyle}
-              >
-
-                {locationOptions.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                  </option>
-                ))}
-
-              </select>
-
-              <button
-                type="button"
-                onClick={() => setLocationOpen(true)}
-                disabled={loadingLocations || saving}
-                className="mt-3 text-sm font-bold text-[#a50034] disabled:opacity-50"
-              >
-                + 새 위치 만들기
-              </button>
-              {loadingLocations && <p role="status" className="mt-2 text-xs text-gray-500">보관 위치를 불러오는 중이에요.</p>}
-              {locationLoadError && <p role="alert" className="mt-2 text-xs text-red-700">{locationLoadError}</p>}
-
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Select label="위치" options={storageOptions} value={storageLocationId} onChange={setStorageLocationId} />
+              <Button variant="text" size="sm" className="self-start" onClick={() => setLocationOpen(true)} disabled={loadingLocations || saving}>
+                ＋ 새 위치 만들기
+              </Button>
+              {loadingLocations && <Loading variant="text" message="보관 위치를 불러오는 중이에요." />}
+              {locationLoadError && <AlertBox message={locationLoadError} />}
             </div>
-
             <div>
-
-              <label className="mb-2 block text-sm">
-                상태
-              </label>
-
-              <div className="flex gap-1">
-
-                {Object.entries(STORAGE_STATUS_LABELS).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setStorageStatus(value)}
-                    aria-pressed={storageStatus === value}
-                    className={storageStatus === value ? activeStyle : inactiveStyle}
-                  >
-                    {label}
-                  </button>
-                ))}
-
-              </div>
-
+              <p className="mb-2 text-[13px] font-medium">지금 상태</p>
+              <Segmented label="지금 상태" options={statusOptions} value={storageStatus} onChange={setStorageStatus} />
             </div>
-
           </div>
 
-          {/* ============================== */}
-          {/* 여러 벌 등록 */}
-          {/* ============================== */}
-
-          <div className="rounded-xl bg-gray-100 p-4">
-
-            <div className="flex items-center justify-between gap-3">
-
-              <div>
-
-                <p className="text-sm font-bold">
-                  같은 옷이 여러 벌인가요?
-                </p>
-
-                <p className="mt-1 text-xs text-gray-500">
-                  같은 옷을 여러 벌 가지고 있다면
-                  한 번에 등록해요.
-                </p>
-
+          <div className="rounded-xl bg-bg-1 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold">같은 옷이 여러 벌인가요?</p>
+                <p className="mt-1 text-xs text-sub">똑같은 양말·티셔츠처럼 같은 옷을 여러 벌 가지고 있다면 한 번에 등록해요.</p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setMultiple((current) => !current)}
-                aria-pressed={multiple}
-                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-bold ${
-                  multiple ? "border-[#a50034] bg-[#a50034] text-white" : "border-gray-300 bg-white"
-                }`}
-              >
+              <Chip selected={multiple} onClick={() => setMultiple((current) => !current)}>
                 여러 벌이에요
-              </button>
+              </Chip>
             </div>
-
             {multiple && (
-              <div className="mt-3 flex flex-col gap-3 border-t border-gray-200 pt-3">
-                <div className="flex items-center gap-3 text-sm">
-                  <span>몇 벌인가요?</span>
-                  <button
-                    type="button"
+              <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3">
+                <div role="group" aria-label="몇 벌인가요?" className="flex items-center gap-2">
+                  <span className="text-sm text-sub">몇 벌인가요?</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     aria-label="한 벌 줄이기"
-                    disabled={pieces.length === 1}
-                    onClick={() => setPieces((prev) => prev.length > 1 ? prev.slice(0, -1) : prev)}
-                    className="h-9 w-9 rounded-xl border border-gray-300 bg-white disabled:opacity-50"
-                  >
-                    −
-                  </button>
-                  <output className="font-bold">{pieces.length + 1}벌</output>
-                  <button
-                    type="button"
+                    disabled={pieces.length <= 1}
+                    className="w-8"
+                    onClick={() => setPieces((previous) => previous.length > 1 ? previous.slice(0, -1) : previous)}
+                  >−</Button>
+                  <output className="min-w-8 text-center text-sm font-bold">{pieces.length + 1}벌</output>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     aria-label="한 벌 추가"
-                    onClick={() => setPieces((prev) => [...prev, null])}
-                    className="h-9 w-9 rounded-xl border border-gray-300 bg-white"
-                  >
-                    +
-                  </button>
+                    className="w-8"
+                    onClick={() => setPieces((previous) => [...previous, null])}
+                  >+</Button>
                 </div>
-
                 {pieces.map((piece, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <label htmlFor={`piece-location-${index}`} className="w-24 shrink-0 text-sm">
+                  <div key={index} className="grid grid-cols-[5.25rem_minmax(0,1fr)] items-center gap-3">
+                    <label htmlFor={`piece-location-${index}`} className="text-xs text-sub">
                       {index + 2}번째 벌
                     </label>
-                    <select
+                    <Select
                       id={`piece-location-${index}`}
+                      options={storageOptions}
                       value={piece ?? storageLocationId}
-                      onChange={(event) => {
-                        const locationId = event.target.value;
-                        setPieces((prev) => prev.map((item, i) => i === index ? locationId : item));
-                      }}
-                      className={inputStyle}
-                    >
-                      {locationOptions.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name}
-                        </option>
-                      ))}
-
-                    </select>
+                      onChange={(locationId) => setPieces((previous) =>
+                        previous.map((item, pieceIndex) => pieceIndex === index ? locationId : item)
+                      )}
+                    />
                   </div>
                 ))}
-
-                <p className="text-xs text-gray-500">
-                  첫 번째 벌은 위에서 고른 위치를 사용해요. 나머지 벌은 위치를 각각 선택할 수 있어요.
+                <p className="text-xs text-sub">
+                  첫 번째 벌은 위에서 고른 위치예요.
+                  <br />
+                  벌마다 위치를 따로 정할 수 있고, 옷장에서는 한 장으로 묶어 보여줘요.
                 </p>
               </div>
             )}
-
           </div>
-
-          <p className="text-xs text-gray-500">
-            계절이 지나 보관해두었다면 &apos;보관 중&apos;으로 두세요.
+          <p className="text-xs text-sub">
+            계절이 지나 보관해두었다면 &apos;보관 중&apos;으로 두세요. 바로 추천하지 않고, 필요한 시기가 오면 꺼내라고 알려드려요.
           </p>
-
-          <hr className="my-2 border-gray-200" />
-
-          {/* ============================== */}
-          {/* 하단 저장 버튼 */}
-          {/* ============================== */}
-
-          <div className="flex justify-end gap-3">
-
-            <Button
-              href="/closet"
-              variant="secondary"
-            >
-              취소
+          {saveError && <AlertBox message={saveError} />}
+          <div className="flex justify-end gap-3 border-t border-line pt-5">
+            <Button href="/closet" variant="secondary">취소</Button>
+            <Button onClick={handleSave} disabled={saving || loadingLocations}>
+              {saving ? "저장 중…" : "옷장에 저장"}
             </Button>
-
-            <Button
-              onClick={handleSave}
-              disabled={saving || loadingLocations}
-            >
-              {saving ? "저장 중..." : "옷장에 저장"}
-            </Button>
-
           </div>
-
         </section>
-
       </div>
 
-      {/* ============================== */}
-      {/* 새 보관 위치 등록 모달 */}
-      {/* ============================== */}
-
-      {locationOpen && (
-
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6">
-
-            <h2 className="mb-4 text-lg font-bold">
-              새 위치 만들기
-            </h2>
-
-            <input
-              value={newLocation}
-              onChange={(e) =>
-                setNewLocation(e.target.value)
-              }
-              placeholder="예: 안방 옷장"
-              className={inputStyle}
-            />
-
-            <div className="mt-4 flex justify-end gap-3">
-
-              <Button
-                variant="secondary"
-                onClick={() => setLocationOpen(false)}
-                disabled={savingLocation}
-              >
-                취소
-              </Button>
-
-              <Button onClick={handleAddLocation} disabled={savingLocation || !newLocation.trim()}>
-                {savingLocation ? "추가 중..." : "추가"}
-              </Button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
+      <Modal
+        open={locationOpen}
+        title="새 보관 위치 만들기"
+        onClose={closeLocationModal}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeLocationModal} disabled={savingLocation}>취소</Button>
+            <Button type="submit" form="new-storage-location" disabled={savingLocation || !newLocation.trim()}>
+              {savingLocation ? "만드는 중…" : "만들기"}
+            </Button>
+          </>
+        }
+      >
+        <form id="new-storage-location" onSubmit={(event) => {
+          event.preventDefault();
+          void handleAddLocation();
+        }}>
+          <Input
+            label="위치 이름"
+            value={newLocation}
+            onChange={(event) => {
+              setNewLocation(event.target.value);
+              if (locationError) setLocationError("");
+            }}
+            placeholder="예: 베란다 수납함"
+            hint={
+              <>
+                만들면 이 옷의 위치로 바로 골라줘요.
+                <br />
+                이름 바꾸기·삭제는 보관 위치 관리에서 할 수 있어요.
+              </>
+            }
+            error={locationError}
+            disabled={savingLocation}
+            required
+          />
+        </form>
+      </Modal>
     </main>
   );
 }
