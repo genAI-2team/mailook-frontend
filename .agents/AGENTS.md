@@ -101,10 +101,10 @@
 |---|---|---|
 | 전이레 | feedback, profile, signup/preference | common, weather, feedback, preference (+ 프론트 틀: `api/`의 axios 인스턴스, `constants.js`, `utils/`) |
 | 정동화 | login, signup, signup/info, places, account | user, place |
-| 강민주 | closet, closet/storage, closet/new, closet/[clothesId], preview, wear/new, wear/history | closet, wear |
-| 최수인 | / (홈), uniform | recommend |
+| 강민주 | /, preview, wear/new, wear/history | wear |
+| 최수인 | closet, closet/storage, closet/new, closet/[clothesId], uniform | closet, recommend |
 
-홈(/)은 최수인 담당이지만, 날씨 띠와 '오늘은 몸이 안 좋아요'의 학습 제외는 전이레, '이걸로 입을게요' 착용 기록 저장은 강민주 담당입니다. 내 성향 화면의 기본 설정 칸은 정동화 담당입니다.
+홈(/)은 강민주 담당입니다. 내 성향 화면의 기본 설정 칸은 전이레 담당입니다.
 
 ### 담당 밖 파일 수정 규칙
 
